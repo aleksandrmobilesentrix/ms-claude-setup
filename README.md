@@ -24,7 +24,7 @@ For machines that **already** have Claude Code. Toggles the provider:
 - **Anthropic** → direct `claude.ai` subscription (no proxy)
 
 ```powershell
-irm https://tinyurl.com/ms-switch | iex
+irm https://tinyurl.com/ms-claude-switch | iex
 ```
 
 Press **ENTER** at the prompt to switch to the other provider.
