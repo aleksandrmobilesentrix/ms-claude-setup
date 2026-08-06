@@ -43,6 +43,18 @@ irm https://tinyurl.com/ms-codex | iex
 Restart Codex, then smoke-test: `codex exec "reply with exactly: ok"`.
 Any existing `config.toml` is backed up to `config.toml.bak` first.
 
+## 4. `rollback-codex-newapi.ps1` — revert Codex to its default
+
+Undoes #3: removes the `newapi` provider from `~/.codex/config.toml` so Codex goes
+back to its normal ChatGPT / OpenAI login. Nothing else in the config is touched;
+the gateway config is saved to `config.toml.gateway.bak`. Safe to re-run.
+
+```powershell
+irm https://tinyurl.com/ms-codex-rollback | iex
+```
+
+Restart Codex after. If it asks you to sign in: `codex login`.
+
 ---
 
 ## Where things are stored
@@ -73,3 +85,4 @@ Raw URLs:
 - `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/install-newapi.ps1`
 - `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/switch-provider.ps1`
 - `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/install-codex-newapi.ps1`
+- `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/rollback-codex-newapi.ps1`
