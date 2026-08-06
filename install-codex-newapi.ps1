@@ -96,8 +96,10 @@ Write-Host '[3/3] Pointing Codex at the MobileSentrix gateway...' -ForegroundCol
 if (Test-Path $configPath) { Copy-Item $configPath "$configPath.bak" -Force }
 
 $config = @"
-model = "gpt-5.5"
-model_reasoning_effort = "xhigh"
+# Model is intentionally NOT set here - Codex uses its own default gpt/codex model.
+# The gateway's Responses API works for gpt/codex models (Codex's native path);
+# it is NOT implemented for Claude/GLM models. So your token must be in a group
+# that has the gpt/codex channels (the 'codex' group), not the plain 'default' one.
 model_provider = "newapi"
 
 [model_providers.newapi]
@@ -123,4 +125,8 @@ if (Test-Path "$configPath.bak") { Write-Host ("  Backup   : {0}.bak (previous c
 Write-Host ''
 Write-Host 'Next: open a NEW PowerShell, then smoke-test:' -ForegroundColor Cyan
 Write-Host '  codex exec "reply with exactly: ok"'
+Write-Host ''
+Write-Host 'Note: Codex uses its own default gpt/codex model. If you see' -ForegroundColor DarkGray
+Write-Host '  "No available channel for model <x> under group default" -> your new-api token' -ForegroundColor DarkGray
+Write-Host '  needs to be in the codex group (which has the gpt/codex channels), not default.' -ForegroundColor DarkGray
 Write-Host ''

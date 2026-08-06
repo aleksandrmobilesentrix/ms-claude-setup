@@ -43,6 +43,13 @@ irm https://tinyurl.com/ms-codex | iex
 Restart Codex, then smoke-test: `codex exec "reply with exactly: ok"`.
 Any existing `config.toml` is backed up to `config.toml.bak` first.
 
+The **model is not hardcoded** — Codex uses its own default gpt/codex model. The
+gateway's Responses API (Codex's native path) works for gpt/codex models but is
+**not** implemented for Claude/GLM. So the new-api token must be in a group that
+has the gpt/codex channels (the `codex` group); a plain `default` token that only
+has Claude/GLM channels will fail with *"No available channel for model … under
+group default"*.
+
 ## 4. `rollback-codex-newapi.ps1` — revert Codex to its default
 
 Undoes #3: removes the `newapi` provider from `~/.codex/config.toml` so Codex goes
