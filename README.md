@@ -30,6 +30,19 @@ irm https://tinyurl.com/ms-claude-switch | iex
 Press **ENTER** at the prompt to switch to the other provider.
 **Restart Claude Code** after any change for it to take effect.
 
+## 3. `install-codex-newapi.ps1` — install Codex + point at the gateway
+
+Installs the **Codex CLI** (skips if already installed), makes sure `codex` is on
+`PATH`, asks for your **new-api token**, and writes `~/.codex/config.toml` with the
+MobileSentrix gateway provider (`base_url = https://ai.mobilesentrix.com/v1`).
+
+```powershell
+irm https://tinyurl.com/ms-codex | iex
+```
+
+Restart Codex, then smoke-test: `codex exec "reply with exactly: ok"`.
+Any existing `config.toml` is backed up to `config.toml.bak` first.
+
 ---
 
 ## Where things are stored
@@ -59,3 +72,4 @@ git add . && git commit -m "update" && git push
 Raw URLs:
 - `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/install-newapi.ps1`
 - `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/switch-provider.ps1`
+- `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/install-codex-newapi.ps1`
