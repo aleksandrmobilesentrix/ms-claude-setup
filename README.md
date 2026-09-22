@@ -73,7 +73,7 @@ group. Unrelated Claude settings, Codex MCP servers, and other TOML tables are
 preserved. Safe to re-run.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/switch-mac.sh | bash
+curl -fsSL https://tinyurl.com/ms-ai-switch-mac | bash
 ```
 
 Restart the affected clients after switching. The older client-specific scripts

@@ -11,7 +11,7 @@
 #  separate saved tokens for the two clients, and is safe to run repeatedly.
 #
 #  Run it with:
-#    curl -fsSL https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/switch-mac.sh | bash
+#    curl -fsSL https://tinyurl.com/ms-ai-switch-mac | bash
 # =============================================================================
 set -eu
 umask 077
