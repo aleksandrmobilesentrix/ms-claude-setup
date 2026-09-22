@@ -1,7 +1,8 @@
 # ms-claude-setup
 
-PowerShell helpers to set up and switch the **Claude Code CLI** for MobileSentrix
-(Windows). Each script is self-contained and safe to re-run.
+Self-contained macOS/Linux and Windows helpers that switch **Claude Code** and
+**Codex** between their official providers and the MobileSentrix gateway. Each
+script is safe to re-run.
 
 Endpoint: `https://ai.mobilesentrix.com` (the MobileSentrix new-api gateway).
 
@@ -62,7 +63,23 @@ irm https://tinyurl.com/ms-codex-rollback | iex
 
 Restart Codex after. If it asks you to sign in: `codex login`.
 
-## 5. `switch-claude.sh` — Claude Code switch for **macOS / Linux** (one file, both directions)
+## 5. `switch-mac.sh` — universal Claude Code + Codex switch for **macOS**
+
+One self-contained script manages both clients. Its menu lets you select
+**Claude Code**, **Codex**, or **both**, then switch the selection either to the
+MobileSentrix gateway or back to the official Anthropic / ChatGPT-OpenAI logins.
+Each client keeps its own saved token because Codex tokens need the `codex`
+group. Unrelated Claude settings, Codex MCP servers, and other TOML tables are
+preserved. Safe to re-run.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/switch-mac.sh | bash
+```
+
+Restart the affected clients after switching. The older client-specific scripts
+below remain available for users who prefer them.
+
+## 6. `switch-claude.sh` — Claude Code-only switch for **macOS / Linux**
 
 Asks what you want — **[1]** route Claude Code through the gateway, or **[2]** back
 to the direct claude.ai subscription — and, only for [1], asks for your new-api
@@ -78,7 +95,7 @@ curl -fsSL https://tinyurl.com/ms-claude-switch-mac | bash
 
 Windows equivalent: #2 (`switch-provider.ps1`). Restart Claude Code after switching.
 
-## 6. `switch-codex.sh` — Codex switch for **macOS / Linux** (one file, both directions)
+## 7. `switch-codex.sh` — Codex-only switch for **macOS / Linux**
 
 Asks what you want — **[1]** point Codex at the gateway, or **[2]** go back to the
 normal ChatGPT / OpenAI login — and, only for [1], asks for your new-api token.
@@ -133,6 +150,7 @@ Raw URLs:
 - `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/switch-provider.ps1`
 - `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/install-codex-newapi.ps1`
 - `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/rollback-codex-newapi.ps1`
+- `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/switch-mac.sh`
 - `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/switch-claude.sh`
 - `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/switch-codex.sh`
 - `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/switch-codex.ps1`
