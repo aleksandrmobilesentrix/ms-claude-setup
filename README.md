@@ -72,6 +72,13 @@ Each client keeps its own saved token because Codex tokens need the `codex`
 group. Unrelated Claude settings, Codex MCP servers, and other TOML tables are
 preserved. Safe to re-run.
 
+Use **↑ / ↓** to move and **Enter** to confirm in every menu, including the
+choice to reuse or replace a saved token. **Esc** or **q** cancels; **Ctrl+C**
+also cancels during hidden token entry. No extra menu utilities are required.
+It works with the built-in macOS Bash and when launched through `curl | bash`.
+Basic terminals fall back to numbered prompts. For scripted input, download
+the file and run `bash switch-mac.sh --plain`.
+
 ```bash
 curl -fsSL https://tinyurl.com/ms-ai-switch-mac | bash
 ```

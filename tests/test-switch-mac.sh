@@ -54,7 +54,7 @@ printf '%s\n' \
   'command = "keep-me"' > "$TEST_HOME/.codex/config.toml"
 
 printf '3\n1\nclaude-test-token\ncodex-test-token\n' | \
-  HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" >/dev/null 2>&1
+  HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" --plain >/dev/null 2>&1
 
 assert_contains "$TEST_HOME/.claude/settings.json" '"KEEP_ME": "yes"'
 assert_contains "$TEST_HOME/.claude/settings.json" '"model": "sonnet"'
@@ -68,7 +68,7 @@ assert_contains "$TEST_HOME/.codex/config.toml" 'experimental_bearer_token = "co
 assert_mode_600 "$TEST_HOME/.claude/claude-provider.conf"
 assert_mode_600 "$TEST_HOME/.codex/newapi-provider.conf"
 
-printf '3\n\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" >/dev/null 2>&1
+printf '3\n\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" --plain >/dev/null 2>&1
 assert_contains "$TEST_HOME/.claude/settings.json" '"KEEP_ME": "yes"'
 assert_not_contains "$TEST_HOME/.claude/settings.json" 'ANTHROPIC_BASE_URL'
 assert_not_contains "$TEST_HOME/.claude/settings.json" 'ANTHROPIC_AUTH_TOKEN'
@@ -80,10 +80,10 @@ PASS=$((PASS + 1))
 # Repeated round trips do not duplicate blocks or grow blank lines.
 i=0
 while [ "$i" -lt 4 ]; do
-  printf '3\n1\n\n\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" >/dev/null 2>&1
+  printf '3\n1\n\n\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" --plain >/dev/null 2>&1
   [ "$(grep -c '^model_provider = "newapi"$' "$TEST_HOME/.codex/config.toml")" = 1 ] || fail 'duplicate model_provider'
   [ "$(grep -c '^\[model_providers.newapi\]$' "$TEST_HOME/.codex/config.toml")" = 1 ] || fail 'duplicate provider table'
-  printf '3\n2\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" >/dev/null 2>&1
+  printf '3\n2\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" --plain >/dev/null 2>&1
   i=$((i + 1))
 done
 assert_contains "$TEST_HOME/.codex/config.toml" '[mcp_servers.keep]'
@@ -94,14 +94,14 @@ PASS=$((PASS + 1))
 new_home
 TEST_HOMES="$TEST_HOMES $TEST_HOME"
 printf '%s\n' '{"model":"sonnet"}' > "$TEST_HOME/.claude/settings.json"
-printf '1\n\nclaude-only-token\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" >/dev/null 2>&1
+printf '1\n\nclaude-only-token\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" --plain >/dev/null 2>&1
 assert_contains "$TEST_HOME/.claude/settings.json" 'ANTHROPIC_BASE_URL'
 [ ! -e "$TEST_HOME/.codex/config.toml" ] || fail 'Claude-only switch created a Codex config'
 cp "$TEST_HOME/.claude/settings.json" "$TEST_HOME/claude-before-codex"
-printf '2\n\ncodex-only-token\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" >/dev/null 2>&1
+printf '2\n\ncodex-only-token\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" --plain >/dev/null 2>&1
 cmp -s "$TEST_HOME/.claude/settings.json" "$TEST_HOME/claude-before-codex" || fail 'Codex-only switch changed Claude settings'
 assert_contains "$TEST_HOME/.codex/config.toml" 'model_provider = "newapi"'
-printf '1\n\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" >/dev/null 2>&1
+printf '1\n\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" --plain >/dev/null 2>&1
 assert_not_contains "$TEST_HOME/.claude/settings.json" 'ANTHROPIC_BASE_URL'
 assert_contains "$TEST_HOME/.codex/config.toml" 'model_provider = "newapi"'
 PASS=$((PASS + 1))
@@ -119,7 +119,7 @@ printf '%s\n' \
   'base_url = "https://ai.mobilesentrix.com/v1"' \
   'experimental_bearer_token = "legacy-codex"' \
   'wire_api = "responses"' > "$TEST_HOME/.codex/config.toml"
-printf '3\n2\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" >/dev/null 2>&1
+printf '3\n2\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" --plain >/dev/null 2>&1
 assert_contains "$TEST_HOME/.claude/claude-provider.conf" 'NEWAPI_TOKEN=legacy-claude'
 assert_contains "$TEST_HOME/.codex/newapi-provider.conf" 'NEWAPI_TOKEN=legacy-codex'
 PASS=$((PASS + 1))
@@ -129,7 +129,7 @@ new_home
 TEST_HOMES="$TEST_HOMES $TEST_HOME"
 printf '%s' '{not valid json' > "$TEST_HOME/.claude/settings.json"
 cp "$TEST_HOME/.claude/settings.json" "$TEST_HOME/original-settings"
-if printf '1\n1\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" >/dev/null 2>&1; then
+if printf '1\n1\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" --plain >/dev/null 2>&1; then
   fail 'invalid JSON unexpectedly succeeded'
 fi
 cmp -s "$TEST_HOME/.claude/settings.json" "$TEST_HOME/original-settings" || fail 'invalid JSON was modified'
@@ -141,7 +141,7 @@ TEST_HOMES="$TEST_HOMES $TEST_HOME"
 printf '%s\n' '{"model":"sonnet"}' > "$TEST_HOME/.claude/settings.json"
 cp "$TEST_HOME/.claude/settings.json" "$TEST_HOME/original-settings"
 printf '%s\n' 'model_provider = "company-proxy"' > "$TEST_HOME/.codex/config.toml"
-if printf '3\n1\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" >/dev/null 2>&1; then
+if printf '3\n1\n' | HOME="$TEST_HOME" PATH="$TEST_HOME/bin:$PATH" bash "$SCRIPT" --plain >/dev/null 2>&1; then
   fail 'custom Codex provider unexpectedly succeeded'
 fi
 cmp -s "$TEST_HOME/.claude/settings.json" "$TEST_HOME/original-settings" || fail 'Claude changed before Codex preflight failure'

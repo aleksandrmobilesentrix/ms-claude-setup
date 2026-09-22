@@ -4,8 +4,8 @@
 #  (macOS; also works on Linux)
 #
 #  Choose Claude Code, Codex, or both, then switch the selected clients to:
-#    [1] MobileSentrix new-api gateway
-#    [2] Their official providers (claude.ai / ChatGPT-OpenAI)
+#    MobileSentrix new-api gateway, or their official providers.
+#  Use Up/Down + Enter. Esc or q cancels. No extra UI tools are needed.
 #
 #  The script preserves unrelated Claude settings and Codex TOML tables, keeps
 #  separate saved tokens for the two clients, and is safe to run repeatedly.
@@ -15,6 +15,17 @@
 # =============================================================================
 set -eu
 umask 077
+
+PLAIN=0
+case "${1:-}" in
+  --plain) PLAIN=1; shift ;;
+  --help|-h)
+    printf '%s\n' 'Usage: bash switch-mac.sh [--plain]' \
+      'Up/Down: choose; Enter: confirm; Esc/q: cancel.' \
+      '--plain: numbered prompts on stdin (for basic terminals and automation).'
+    exit 0 ;;
+esac
+[ "$#" = 0 ] || { printf '%s\n' 'Unknown argument. Use --help.' >&2; exit 1; }
 
 GATEWAY_ROOT='https://ai.mobilesentrix.com'
 CLAUDE_GATEWAY="$GATEWAY_ROOT"
@@ -28,8 +39,6 @@ CODEX_DIR="$HOME/.codex"
 CODEX_CONFIG="$CODEX_DIR/config.toml"
 CODEX_CONF="$CODEX_DIR/newapi-provider.conf"
 
-mkdir -p "$CLAUDE_DIR" "$CODEX_DIR"
-
 # Colours (only when output is connected to a terminal).
 if [ -t 2 ]; then
   C_CYAN=$'\033[36m'; C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'; C_RED=$'\033[31m'; C_GRAY=$'\033[90m'; C_OFF=$'\033[0m'
@@ -40,13 +49,123 @@ say()  { printf '%s%s%s\n' "$1" "$2" "$C_OFF" >&2; }
 info() { say "$C_GRAY" "$1"; }
 die()  { say "$C_RED" "$1"; exit 1; }
 
-# With `curl | bash`, stdin contains the script, so interactive answers must be
-# read from the terminal. When there is no terminal (tests), use stdin.
-TTY=/dev/tty
-if ! ( : < "$TTY" ) 2>/dev/null; then TTY=/dev/stdin; fi
-ask()        { printf '%s' "$1" >&2; IFS= read -r REPLY < "$TTY" || REPLY=''; }
-ask_secret() { printf '%s' "$1" >&2; IFS= read -rs REPLY < "$TTY" || REPLY=''; printf '\n' >&2; }
+# Keep input on a separate descriptor: stdin may still contain the downloaded
+# script. --plain deliberately uses stdin, even if a controlling tty exists.
+INPUT_IS_TTY=0
+if [ "$PLAIN" = 0 ] && ( : < /dev/tty ) 2>/dev/null; then
+  exec 3</dev/tty
+  INPUT_IS_TTY=1
+else
+  [ -n "${BASH_SOURCE[0]:-}" ] || die 'No terminal available. Download this script and run it with bash switch-mac.sh.'
+  exec 3<&0
+  if [ -t 3 ]; then INPUT_IS_TTY=1; fi
+fi
+
+TERMINAL_STATE=''
+CURSOR_HIDDEN=0
+restore_terminal() {
+  if [ -n "$TERMINAL_STATE" ]; then
+    stty "$TERMINAL_STATE" <&3 2>/dev/null || true
+    TERMINAL_STATE=''
+  fi
+  if [ "$CURSOR_HIDDEN" = 1 ]; then
+    printf '\033[?25h' >&2
+    CURSOR_HIDDEN=0
+  fi
+}
+trap restore_terminal EXIT
+trap 'printf "\nCancelled.\n" >&2; exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
+
+cancel_switch() { say '' 'Cancelled; provider settings were not changed.'; exit 0; }
+ask() {
+  printf '%s' "$1" >&2
+  IFS= read -r REPLY <&3 || die 'Input closed; cancelled.'
+}
+ask_secret() {
+  if [ "$INPUT_IS_TTY" = 1 ]; then
+    TERMINAL_STATE="$(stty -g <&3)"
+    stty -echo <&3
+  fi
+  printf '%s' "$1" >&2
+  IFS= read -r REPLY <&3 || { printf '\n' >&2; die 'Input closed; cancelled.'; }
+  restore_terminal
+  printf '\n' >&2
+}
 trim_reply() { printf '%s' "$1" | tr -d '[:space:]'; }
+
+# Bash 3.2-compatible picker. MENU_CHOICE is one-based. Each redraw occupies
+# the same number of rows; clipped labels avoid wrapping in narrow terminals.
+select_menu() {
+  local title="$1" selected="$2" count key prefix direction i width rows dimensions
+  shift 2
+  local options=("$@")
+  count=${#options[@]}
+  MENU_CHOICE=''
+  say '' "$title"
+  dimensions='24 80'
+  if [ "$INPUT_IS_TTY" = 1 ]; then dimensions="$(stty size <&3)"; fi
+  read -r rows width <<< "$dimensions"
+  if [ "$PLAIN" = 1 ] || [ "$INPUT_IS_TTY" = 0 ] || [ ! -t 2 ] || \
+     [ "${TERM:-dumb}" = dumb ] || [ "$width" -lt 20 ] || [ "$rows" -lt "$((count + 3))" ]; then
+    i=0
+    while [ "$i" -lt "$count" ]; do
+      printf '  [%s] %s\n' "$((i + 1))" "${options[$i]}" >&2
+      i=$((i + 1))
+    done
+    ask "Choice (ENTER = $selected, q = cancel): "
+    MENU_CHOICE="$(trim_reply "$REPLY")"
+    [ -n "$MENU_CHOICE" ] || MENU_CHOICE="$selected"
+    case "$MENU_CHOICE" in
+      q|Q) cancel_switch ;;
+      [1-9]) [ "$MENU_CHOICE" -le "$count" ] || die 'Invalid choice; cancelled.' ;;
+      *) die 'Invalid choice; cancelled.' ;;
+    esac
+    return 0
+  fi
+
+  TERMINAL_STATE="$(stty -g <&3)"
+  stty -echo -icanon min 1 time 0 <&3
+  CURSOR_HIDDEN=1
+  printf '\033[?25l' >&2
+  while :; do
+    i=1
+    while [ "$i" -le "$count" ]; do
+      printf '\r\033[2K' >&2
+      if [ "$i" = "$selected" ]; then
+        printf '%s> %.*s%s\n' "$C_CYAN" "$((width - 4))" "${options[$((i - 1))]}" "$C_OFF" >&2
+      else
+        printf '  %.*s\n' "$((width - 4))" "${options[$((i - 1))]}" >&2
+      fi
+      i=$((i + 1))
+    done
+    printf '\r\033[2K%.*s\n' "$((width - 1))" '↑/↓ choose · Enter select · Esc/q cancel' >&2
+    key=''
+    IFS= read -rsn1 key <&3 || die 'Input closed; cancelled.'
+    case "$key" in
+      ''|$'\r') MENU_CHOICE="$selected"; break ;;
+      q|Q) restore_terminal; cancel_switch ;;
+      $'\033')
+        # A lone Escape cancels after one second. Both CSI and SS3 arrow
+        # sequences occur in macOS terminals. Integer timeout works in Bash 3.2.
+        prefix=''; direction=''
+        if ! IFS= read -rsn1 -t 1 prefix <&3; then restore_terminal; cancel_switch; fi
+        case "$prefix" in
+          '['|O)
+            IFS= read -rsn1 -t 1 direction <&3 || direction=''
+            case "$direction" in
+              A) selected=$(((selected + count - 2) % count + 1)) ;;
+              B) selected=$((selected % count + 1)) ;;
+            esac ;;
+        esac ;;
+      [1-9]) if [ "$key" -le "$count" ]; then selected="$key"; fi ;;
+    esac
+    printf '\033[%sA' "$((count + 1))" >&2
+  done
+  restore_terminal
+  say "$C_GREEN" "Selected: ${options[$((MENU_CHOICE - 1))]}"
+}
 
 # --- Claude settings.json helper -------------------------------------------
 # Uses Python (included with current macOS developer tools) or Node. Writes are
@@ -147,8 +266,13 @@ JS
 }
 
 claude_saved_token() {
-  [ -f "$CLAUDE_CONF" ] || return 0
-  sed -n 's/^[[:space:]]*NEWAPI_TOKEN[[:space:]]*=[[:space:]]*//p' "$CLAUDE_CONF" | head -n1 | tr -d '[:space:]'
+  local saved=''
+  if [ -f "$CLAUDE_CONF" ]; then
+    saved="$(sed -n 's/^[[:space:]]*NEWAPI_TOKEN[[:space:]]*=[[:space:]]*//p' "$CLAUDE_CONF" | head -n1 | tr -d '[:space:]')"
+  fi
+  if [ -n "$saved" ]; then printf '%s' "$saved"
+  elif [ "$CLAUDE_STATE" = gateway ]; then claude_json_env get-token
+  fi
 }
 
 save_claude_token() {
@@ -208,8 +332,13 @@ codex_token_from_config() {
 }
 
 codex_saved_token() {
-  [ -f "$CODEX_CONF" ] || return 0
-  sed -n 's/^[[:space:]]*NEWAPI_TOKEN[[:space:]]*=[[:space:]]*//p' "$CODEX_CONF" | head -n1 | tr -d '[:space:]'
+  local saved=''
+  if [ -f "$CODEX_CONF" ]; then
+    saved="$(sed -n 's/^[[:space:]]*NEWAPI_TOKEN[[:space:]]*=[[:space:]]*//p' "$CODEX_CONF" | head -n1 | tr -d '[:space:]')"
+  fi
+  if [ -n "$saved" ]; then printf '%s' "$saved"
+  elif [ "$CODEX_STATE" = gateway ]; then codex_token_from_config
+  fi
 }
 
 save_codex_token() {
@@ -302,35 +431,36 @@ ensure_codex() {
 get_claude_token() {
   saved="$(claude_saved_token)"
   if [ -n "$saved" ]; then
-    say "$C_GREEN" 'A Claude Code gateway token is already saved.'
-    ask_secret '  Claude token (ENTER = keep, or paste a replacement): '
-    entered="$(trim_reply "$REPLY")"
-    if [ -n "$entered" ]; then CLAUDE_TOKEN="$entered"; else CLAUDE_TOKEN="$saved"; fi
-  else
-    say "$C_YELLOW" 'Enter a new-api token with access to Claude models.'
-    ask_secret '  Claude token: '
-    CLAUDE_TOKEN="$(trim_reply "$REPLY")"
-    [ -n "$CLAUDE_TOKEN" ] || die 'No Claude token entered; nothing was changed.'
+    select_menu 'Claude Code gateway token' 1 'Use saved token' 'Enter a new token' 'Cancel'
+    case "$MENU_CHOICE" in
+      1) CLAUDE_TOKEN="$saved"; return 0 ;;
+      3) cancel_switch ;;
+    esac
   fi
+  say "$C_YELLOW" 'Enter a new-api token with access to Claude models (input hidden).'
+  ask_secret '  Claude token: '
+  CLAUDE_TOKEN="$(trim_reply "$REPLY")"
+  [ -n "$CLAUDE_TOKEN" ] || die 'No Claude token entered; provider settings were not changed.'
 }
 
 get_codex_token() {
   saved="$(codex_saved_token)"
   if [ -n "$saved" ]; then
-    say "$C_GREEN" 'A Codex gateway token is already saved.'
-    ask_secret '  Codex token (ENTER = keep, or paste a replacement): '
-    entered="$(trim_reply "$REPLY")"
-    if [ -n "$entered" ]; then CODEX_TOKEN="$entered"; else CODEX_TOKEN="$saved"; fi
-  else
-    say "$C_YELLOW" 'Enter a new-api token in the "codex" group (gpt/codex models).'
-    ask_secret '  Codex token: '
-    CODEX_TOKEN="$(trim_reply "$REPLY")"
-    [ -n "$CODEX_TOKEN" ] || die 'No Codex token entered; nothing was changed.'
+    select_menu 'Codex gateway token' 1 'Use saved token' 'Enter a new token' 'Cancel'
+    case "$MENU_CHOICE" in
+      1) CODEX_TOKEN="$saved"; return 0 ;;
+      3) cancel_switch ;;
+    esac
   fi
+  say "$C_YELLOW" 'Enter a new-api token in the "codex" group (input hidden).'
+  ask_secret '  Codex token: '
+  CODEX_TOKEN="$(trim_reply "$REPLY")"
+  [ -n "$CODEX_TOKEN" ] || die 'No Codex token entered; provider settings were not changed.'
 }
 
 # --- Apply changes ----------------------------------------------------------
 apply_claude_gateway() {
+  mkdir -p "$CLAUDE_DIR"
   [ -f "$CLAUDE_SETTINGS" ] && cp "$CLAUDE_SETTINGS" "$CLAUDE_SETTINGS.bak"
   save_claude_token "$CLAUDE_TOKEN"
   claude_json_env set "$CLAUDE_GATEWAY" "$CLAUDE_TOKEN"
@@ -343,6 +473,8 @@ apply_claude_official() {
     say "$C_GREEN" 'Claude Code is already using Anthropic / claude.ai.'
     return 0
   fi
+  saved="$(claude_saved_token)"
+  [ -z "$saved" ] || save_claude_token "$saved"
   cp "$CLAUDE_SETTINGS" "$CLAUDE_SETTINGS.gateway.bak"
   claude_json_env clear
   say "$C_GREEN" 'Claude Code -> Anthropic / claude.ai.'
@@ -350,6 +482,7 @@ apply_claude_official() {
 }
 
 apply_codex_gateway() {
+  mkdir -p "$CODEX_DIR"
   [ -f "$CODEX_CONFIG" ] && cp "$CODEX_CONFIG" "$CODEX_CONFIG.bak"
   save_codex_token "$CODEX_TOKEN"
   rest="$(read_codex_config | strip_codex_gateway)"
@@ -375,6 +508,8 @@ apply_codex_official() {
     say "$C_GREEN" 'Codex is already using ChatGPT / OpenAI.'
     return 0
   fi
+  saved="$(codex_saved_token)"
+  [ -z "$saved" ] || save_codex_token "$saved"
   cp "$CODEX_CONFIG" "$CODEX_CONFIG.gateway.bak"
   rest="$(read_codex_config | strip_codex_gateway)"
   meaningful="$(printf '%s\n' "$rest" | grep -Ev '^[[:space:]]*(#.*)?$' || true)"
@@ -388,18 +523,9 @@ apply_codex_official() {
   info "  Saved gateway token: $CODEX_CONF"
 }
 
-# --- Detect state and import legacy active tokens ---------------------------
+# --- Detect state without writing anything before a selection ---------------
 CLAUDE_STATE="$(claude_state)"
 CODEX_STATE="$(codex_state)"
-
-if [ "$CLAUDE_STATE" = 'gateway' ] && [ -z "$(claude_saved_token)" ]; then
-  legacy_token="$(claude_json_env get-token)"
-  [ -z "$legacy_token" ] || save_claude_token "$legacy_token"
-fi
-if [ "$CODEX_STATE" = 'gateway' ] && [ -z "$(codex_saved_token)" ]; then
-  legacy_token="$(codex_token_from_config)"
-  [ -z "$legacy_token" ] || save_codex_token "$legacy_token"
-fi
 
 # --- Menu -------------------------------------------------------------------
 say '' ''
@@ -407,12 +533,9 @@ say "$C_CYAN" '=== MobileSentrix - Claude Code + Codex switcher ==='
 say "$C_YELLOW" "Claude Code: $(claude_status_label "$CLAUDE_STATE")"
 say "$C_YELLOW" "Codex      : $(codex_status_label "$CODEX_STATE")"
 say '' ''
-say '' '  [1] Claude Code'
-say '' '  [2] Codex'
-say '' '  [3] Both Claude Code and Codex'
-say '' '  [q] Exit'
-ask 'What do you want to switch? [1/2/3/q]: '
-SCOPE="$(trim_reply "$REPLY")"
+select_menu 'What do you want to switch?' 1 \
+  'Claude Code' 'Codex' 'Both Claude Code and Codex' 'Exit'
+SCOPE="$MENU_CHOICE"
 
 DO_CLAUDE=0
 DO_CODEX=0
@@ -420,7 +543,7 @@ case "$SCOPE" in
   1) DO_CLAUDE=1 ;;
   2) DO_CODEX=1 ;;
   3) DO_CLAUDE=1; DO_CODEX=1 ;;
-  q|Q) say '' 'Nothing changed.'; exit 0 ;;
+  4) say '' 'Nothing changed.'; exit 0 ;;
   *) die "Invalid choice '$SCOPE'; nothing changed." ;;
 esac
 
@@ -432,12 +555,12 @@ if [ "$DO_CODEX" = 1 ] && [ "$DO_CLAUDE" = 0 ] && [ "$CODEX_STATE" = 'gateway' ]
 if [ "$DO_CLAUDE" = 1 ] && [ "$DO_CODEX" = 1 ] && [ "$CLAUDE_STATE" = 'gateway' ] && [ "$CODEX_STATE" = 'gateway' ]; then DEFAULT_TARGET=2; fi
 
 say '' ''
-say '' '  [1] MobileSentrix gateway'
-say '' '  [2] Official providers (Anthropic + ChatGPT/OpenAI)'
-ask "Switch to [1/2] (ENTER = $DEFAULT_TARGET): "
-TARGET="$(trim_reply "$REPLY")"
-[ -n "$TARGET" ] || TARGET="$DEFAULT_TARGET"
-case "$TARGET" in 1|2) ;; *) die "Invalid choice '$TARGET'; nothing changed." ;; esac
+OFFICIAL_LABEL='Official providers (Anthropic + ChatGPT/OpenAI)'
+if [ "$SCOPE" = 1 ]; then OFFICIAL_LABEL='Anthropic / claude.ai'; fi
+if [ "$SCOPE" = 2 ]; then OFFICIAL_LABEL='ChatGPT / OpenAI'; fi
+select_menu 'Switch to' "$DEFAULT_TARGET" 'MobileSentrix gateway' "$OFFICIAL_LABEL" 'Cancel'
+TARGET="$MENU_CHOICE"
+case "$TARGET" in 3) cancel_switch ;; esac
 
 # A custom Codex model provider cannot be overwritten without losing user
 # intent. Refuse before touching either client, especially for the "both" path.
