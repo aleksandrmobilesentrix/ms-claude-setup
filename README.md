@@ -62,6 +62,28 @@ irm https://tinyurl.com/ms-codex-rollback | iex
 
 Restart Codex after. If it asks you to sign in: `codex login`.
 
+## 5. `switch-codex.sh` — Codex switch for **macOS / Linux** (one file, both directions)
+
+Asks what you want — **[1]** point Codex at the gateway, or **[2]** go back to the
+normal ChatGPT / OpenAI login — and, only for [1], asks for your new-api token.
+The token is remembered in `~/.codex/newapi-provider.conf`, so switching back and
+forth does not ask again. Only the gateway bits of `~/.codex/config.toml` are
+added/removed; MCP servers and other settings stay. Installs the Codex CLI
+(Homebrew → npm) if it is missing. Safe to re-run.
+
+```bash
+curl -fsSL https://tinyurl.com/ms-codex-switch | bash
+```
+
+Windows equivalent (same behaviour, PowerShell): `switch-codex.ps1`
+
+```powershell
+irm https://tinyurl.com/ms-codex-switch-win | iex
+```
+
+Restart Codex after switching. Smoke-test on the gateway:
+`codex exec "reply with exactly: ok"`. Back on default: `codex login` if asked.
+
 ---
 
 ## Where things are stored
@@ -70,6 +92,8 @@ Restart Codex after. If it asks you to sign in: `codex login`.
 |---|---|
 | Endpoint + token (active) | `~/.claude/settings.json` → `env.ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` |
 | Saved new-api token (for toggling back) | `~/.claude/claude-provider.conf` |
+| Codex gateway provider (active) | `~/.codex/config.toml` → `model_provider = "newapi"` + `[model_providers.newapi]` |
+| Saved new-api token for Codex | `~/.codex/newapi-provider.conf` |
 
 **No secrets live in these scripts** — the token is entered at runtime. That is
 why this repo can be public (required so `irm | iex` can fetch the raw files).
@@ -93,3 +117,5 @@ Raw URLs:
 - `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/switch-provider.ps1`
 - `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/install-codex-newapi.ps1`
 - `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/rollback-codex-newapi.ps1`
+- `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/switch-codex.sh`
+- `https://raw.githubusercontent.com/aleksandrmobilesentrix/ms-claude-setup/main/switch-codex.ps1`
