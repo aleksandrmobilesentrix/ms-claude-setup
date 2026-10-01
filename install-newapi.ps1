@@ -100,10 +100,19 @@ if ($alreadyConfigured) {
 # --- 3) Point Claude Code at the gateway (~/.claude/settings.json) -----------
 Write-Host ''
 Write-Host '[3/3] Configuring Claude Code to use the MobileSentrix gateway...' -ForegroundColor Yellow
-$settings['env'] = [ordered]@{
-    ANTHROPIC_BASE_URL   = $Gateway
-    ANTHROPIC_AUTH_TOKEN = $token
+# Keep any other env keys; only the gateway vars are (re)written.
+$newEnv = [ordered]@{}
+if ($settings['env']) {
+    foreach ($name in $settings['env'].PSObject.Properties.Name) {
+        if ($name -ne 'ANTHROPIC_API_KEY') { $newEnv[$name] = $settings['env'].$name }
+    }
 }
+$newEnv['ANTHROPIC_BASE_URL']   = $Gateway
+$newEnv['ANTHROPIC_AUTH_TOKEN'] = $token
+# Claude Code turns tool search off for non-Anthropic base URLs and then
+# sends every MCP tool schema with every request; the gateway supports it.
+$newEnv['ENABLE_TOOL_SEARCH']   = 'true'
+$settings['env'] = $newEnv
 # Write UTF-8 WITHOUT BOM (Node/Claude Code parses JSON strictly; a BOM breaks it).
 [System.IO.File]::WriteAllText($settingsPath, ($settings | ConvertTo-Json -Depth 20), (New-Object System.Text.UTF8Encoding($false)))
 

@@ -90,10 +90,19 @@ if ($choice -eq '1') {
         }
         Save-Token $token
     }
-    $settings['env'] = [ordered]@{
-        ANTHROPIC_BASE_URL   = $Gateway
-        ANTHROPIC_AUTH_TOKEN = $token
+    # Keep any other env keys; only the gateway vars are (re)written.
+    $newEnv = [ordered]@{}
+    if ($settings['env']) {
+        foreach ($name in $settings['env'].PSObject.Properties.Name) {
+            if ($name -ne 'ANTHROPIC_API_KEY') { $newEnv[$name] = $settings['env'].$name }
+        }
     }
+    $newEnv['ANTHROPIC_BASE_URL']   = $Gateway
+    $newEnv['ANTHROPIC_AUTH_TOKEN'] = $token
+    # Claude Code turns tool search off for non-Anthropic base URLs and then
+    # sends every MCP tool schema with every request; the gateway supports it.
+    $newEnv['ENABLE_TOOL_SEARCH']   = 'true'
+    $settings['env'] = $newEnv
     $result = "New API gateway ($Gateway)"
 }
 elseif ($choice -eq '2') {

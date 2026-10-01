@@ -11,8 +11,9 @@
 #  - The token is remembered in ~/.claude/claude-provider.conf, so switching
 #    back and forth does NOT ask for it again.
 #  - Only ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN in the "env" block of
-#    ~/.claude/settings.json are added/removed; everything else in that file
-#    (permissions, hooks, other env vars) is left untouched.
+#    ~/.claude/settings.json are added/removed (plus ENABLE_TOOL_SEARCH=true
+#    for the gateway); everything else in that file (permissions, hooks,
+#    other env vars) is left untouched.
 #  - Installs the Claude Code CLI if it is missing (only when switching to [1]).
 #  - Safe to re-run as many times as you like.
 #
@@ -64,6 +65,9 @@ if op == "set":
     env["ANTHROPIC_BASE_URL"] = sys.argv[3]
     env["ANTHROPIC_AUTH_TOKEN"] = sys.argv[4]
     env.pop("ANTHROPIC_API_KEY", None)
+    # Claude Code turns tool search off for non-Anthropic base URLs and then
+    # sends every MCP tool schema with every request; the gateway supports it.
+    env["ENABLE_TOOL_SEARCH"] = "true"
     d["env"] = env
 elif op == "clear":
     for k in ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY"): env.pop(k, None)
@@ -86,7 +90,7 @@ if (fs.existsSync(path)) {
 const env = d.env || {};
 if (op === "get-base")  { console.log(env.ANTHROPIC_BASE_URL || "");   process.exit(0); }
 if (op === "get-token") { console.log(env.ANTHROPIC_AUTH_TOKEN || ""); process.exit(0); }
-if (op === "set") { env.ANTHROPIC_BASE_URL = url; env.ANTHROPIC_AUTH_TOKEN = tok; delete env.ANTHROPIC_API_KEY; d.env = env; }
+if (op === "set") { env.ANTHROPIC_BASE_URL = url; env.ANTHROPIC_AUTH_TOKEN = tok; delete env.ANTHROPIC_API_KEY; env.ENABLE_TOOL_SEARCH = "true"; d.env = env; }
 else if (op === "clear") { for (const k of ["ANTHROPIC_BASE_URL","ANTHROPIC_AUTH_TOKEN","ANTHROPIC_API_KEY"]) delete env[k]; if (Object.keys(env).length) d.env = env; else delete d.env; }
 fs.writeFileSync(path + ".tmp", JSON.stringify(d, null, 2) + "\n");
 fs.renameSync(path + ".tmp", path);

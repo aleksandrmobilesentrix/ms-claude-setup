@@ -204,6 +204,9 @@ if op == "set":
     env["ANTHROPIC_BASE_URL"] = sys.argv[3]
     env["ANTHROPIC_AUTH_TOKEN"] = sys.argv[4]
     env.pop("ANTHROPIC_API_KEY", None)
+    # Claude Code turns tool search off for non-Anthropic base URLs and then
+    # sends every MCP tool schema with every request; the gateway supports it.
+    env["ENABLE_TOOL_SEARCH"] = "true"
     data["env"] = env
 elif op == "clear":
     for key in ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY"):
@@ -247,6 +250,7 @@ if (op === "set") {
   env.ANTHROPIC_BASE_URL = url;
   env.ANTHROPIC_AUTH_TOKEN = token;
   delete env.ANTHROPIC_API_KEY;
+  env.ENABLE_TOOL_SEARCH = "true";
   data.env = env;
 } else if (op === "clear") {
   for (const key of ["ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY"]) delete env[key];
