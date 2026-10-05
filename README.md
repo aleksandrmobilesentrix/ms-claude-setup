@@ -160,7 +160,7 @@ Restart Claude Code afterwards.
 | Saved new-api token (for toggling back) | `~/.claude/claude-provider.conf` |
 | Codex gateway provider (active) | `~/.codex/config.toml` → `model_provider = "newapi"` + `[model_providers.newapi]` |
 | Saved new-api token for Codex | `~/.codex/newapi-provider.conf` |
-| Forced tool search (machine-wide) | Claude Code managed settings: `C:\\Program Files\\ClaudeCode\\managed-settings.json`, `/Library/Application Support/ClaudeCode/managed-settings.json`, `/etc/claude-code/managed-settings.json` → `env.ENABLE_TOOL_SEARCH` |
+| Forced tool search (machine-wide) | Claude Code managed settings: `C:\Program Files\ClaudeCode\managed-settings.json`, `/Library/Application Support/ClaudeCode/managed-settings.json`, `/etc/claude-code/managed-settings.json` → `env.ENABLE_TOOL_SEARCH` |
 
 **No secrets live in these scripts** — the token is entered at runtime. That is
 why this repo can be public (required so `irm | iex` can fetch the raw files).
