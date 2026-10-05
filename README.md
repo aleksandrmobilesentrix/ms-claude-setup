@@ -124,6 +124,32 @@ irm https://tinyurl.com/ms-codex-switch-win | iex
 Restart Codex after switching. Smoke-test on the gateway:
 `codex exec "reply with exactly: ok"`. Back on default: `codex login` if asked.
 
+## 8. `enable-tool-search` — force Claude Code tool search on (all users of a machine)
+
+Behind our gateway Claude Code turns tool search off by default and sends every
+MCP tool schema with every request (tens of thousands of tokens each time).
+This writes `ENABLE_TOOL_SEARCH=true` into Claude Code's **managed settings**
+file, which outranks every user setting, so `~/.claude/settings.json` and the
+provider switches can no longer turn it off. Only that key is written — the
+gateway URL and token stay in user settings, so `/newapi` and `/anthropic`
+keep switching providers. Other managed keys are kept; the old file is backed up.
+Needs admin rights once. Safe to re-run.
+
+Windows (PowerShell **Run as administrator**) → `C:\Program Files\ClaudeCode\managed-settings.json`:
+
+```powershell
+irm https://tinyurl.com/ms-tool-search | iex
+```
+
+macOS / Linux (asks for your password for sudo) → `/Library/Application Support/ClaudeCode/managed-settings.json`
+or `/etc/claude-code/managed-settings.json`:
+
+```bash
+curl -fsSL https://tinyurl.com/ms-tool-search-mac | bash
+```
+
+Restart Claude Code afterwards.
+
 ---
 
 ## Where things are stored
@@ -134,6 +160,7 @@ Restart Codex after switching. Smoke-test on the gateway:
 | Saved new-api token (for toggling back) | `~/.claude/claude-provider.conf` |
 | Codex gateway provider (active) | `~/.codex/config.toml` → `model_provider = "newapi"` + `[model_providers.newapi]` |
 | Saved new-api token for Codex | `~/.codex/newapi-provider.conf` |
+| Forced tool search (machine-wide) | Claude Code managed settings: `C:\\Program Files\\ClaudeCode\\managed-settings.json`, `/Library/Application Support/ClaudeCode/managed-settings.json`, `/etc/claude-code/managed-settings.json` → `env.ENABLE_TOOL_SEARCH` |
 
 **No secrets live in these scripts** — the token is entered at runtime. That is
 why this repo can be public (required so `irm | iex` can fetch the raw files).
